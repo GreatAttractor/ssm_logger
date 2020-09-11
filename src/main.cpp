@@ -1,6 +1,6 @@
 /*
  * Solar Scintillation Monitor Logger
- * Copyright (c) 2017 Filip Szczerek <ga.software@yahoo.com>
+ * Copyright (c) 2017-2020 Filip Szczerek <ga.software@yahoo.com>
  *
  * This project is licensed under the terms of the MIT license
  * (see the LICENSE file for details).
