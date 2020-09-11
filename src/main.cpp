@@ -11,9 +11,10 @@
 #include <boost/program_options.hpp>
 #include <chrono>
 #include <ctime>
+#include <cctype>
 #include <fstream>
 #include <iostream>
-#include <ncurses.h>
+#include <ncurses/ncurses.h>
 #include <stdexcept>
 #include <thread>
 
@@ -85,7 +86,7 @@ void ShowMessage(const char *format, ...)
 
     va_list args;
     va_start(args, format);
-    vwprintw(screen, format, args);
+    vw_printw(screen, format, args);
     va_end(args);
 
     refresh();
@@ -226,7 +227,7 @@ int main(int argc, char *argv[])
         title += " (simulation)";
 #endif
         mvprintw(0, 0, title.c_str());
-        mvprintw(1, 0, "Ctrl-C to exit");
+        mvprintw(1, 0, "Press Q to quit");
         refresh();
 
         logStart = std::chrono::high_resolution_clock::now();
@@ -234,17 +235,24 @@ int main(int argc, char *argv[])
         if (logFile.is_open())
         {
             logFile << "-------- SSM Logger --------\n"
-                       "Timestamp (UTC): " << GetUTCTimeStamp(logStart) << "\n"
+                       "Start time (UTC): " << GetUTCTimeStamp(logStart) << "\n"
                        // CSV columns description:
-                       "Milliseconds since timestamp;Seeing (arc sec);Input value (V)\n";
+                       "Timestamp (UTC);Milliseconds since start;Seeing (arc sec);Input value (V)\n";
 
             mvprintw(POS_XY(Display::LogFile), "Log: %s", logFilePath.c_str());
         }
         else
             mvprintw(POS_XY(Display::LogFile), "Logging disabled");
 
+        nodelay(stdscr, TRUE); // enable asynchronous mode of getch()
+        noecho();
+
         while (true)
         {
+            int ch;
+            if (toupper(ch = getch()) == 'Q')
+                break;
+
             boost::asio::streambuf inputBuf;
 
 #if !SSM_IO_SIMULATION
@@ -312,7 +320,8 @@ int main(int argc, char *argv[])
 
                 if (!valInput.empty() || !valSeeing.empty())
                 {
-                    logFile << std::chrono::duration_cast<std::chrono::milliseconds>(tReceived - logStart).count() << ";"
+                    logFile << GetUTCTimeStamp(tReceived) << ";"
+                            << std::chrono::duration_cast<std::chrono::milliseconds>(tReceived - logStart).count() << ";"
                             << valSeeing << ";"
                             << valInput  << "\n";
                 }

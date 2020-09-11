@@ -11,7 +11,7 @@ set_property(TARGET ssm_logger PROPERTY CXX_STANDARD_REQUIRED ON)
 
 find_package(Boost COMPONENTS system program_options REQUIRED)
 target_include_directories(ssm_logger PUBLIC ${Boost_INCLUDE_DIRS})
-target_link_libraries(ssm_logger ${Boost_LIBRARIES})
+target_link_libraries(ssm_logger ${Boost_LIBRARIES} pthread)
 
 find_package(Curses REQUIRED)
 target_include_directories(ssm_logger PUBLIC ${CURSES_INCLUDE_DIR})
