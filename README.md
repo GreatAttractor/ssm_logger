@@ -21,25 +21,12 @@ Clone the sources:
 git clone https://github.com/GreatAttractor/ssm_logger
 ```
 
-### 1. Meson
-
-*Note: as of 2017-07-14, I could not get Meson under MSYS to find Boost; use CMake instead.*
-
+Build with CMake:
 ```
 cd ssm_logger
 mkdir build
 cd build
-meson ..
-ninja
-```
-
-### 2. CMake
-
-```
-cd ssm_logger
-mkdir build
-cd build
-cmake -G "Unix Makefiles" ..
+cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release ..
 make
 ```
 
