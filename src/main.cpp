@@ -12,9 +12,11 @@
 #include <chrono>
 #include <ctime>
 #include <cctype>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <ncurses/ncurses.h>
+#include <optional>
 #include <stdexcept>
 #include <thread>
 
@@ -160,11 +162,13 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
-    std::ofstream logFile;
+    std::optional<std::ofstream> logFile;
+    bool logFileExisted = false;
     if (progOptVars.count(CmdLineOptions::LogFile))
     {
-        logFile.open(logFilePath, std::ios_base::out | std::ios_base::app); // append to previous contents
-        if (!logFile.is_open())
+        logFileExisted = std::filesystem::exists(logFilePath);
+        logFile = std::ofstream(logFilePath, std::ios_base::out | std::ios_base::app); // append to previous contents
+        if (!logFile->is_open())
         {
             std::cout << "Could not open " << logFilePath << " for writing." << std::endl;
             return EXIT_FAILURE;
@@ -232,12 +236,16 @@ int main(int argc, char *argv[])
 
         logStart = std::chrono::high_resolution_clock::now();
         auto lastLogFlush = logStart;
-        if (logFile.is_open())
+        if (logFile.has_value())
         {
-            logFile << "-------- SSM Logger --------\n"
-                       "Start time (UTC): " << GetUTCTimeStamp(logStart) << "\n"
-                       // CSV columns description:
-                       "Timestamp (UTC);Milliseconds since start;Seeing (arc sec);Input value (V)\n";
+            *logFile << "# -------- SSM Logger --------\n"
+                        "# Start time (UTC): " << GetUTCTimeStamp(logStart) << "\n";
+
+            if (!logFileExisted)
+            {
+                // CSV columns description:
+                *logFile << "Timestamp (UTC);Milliseconds since start;Seeing (arc sec);Input value (V)\n";
+            }
 
             mvprintw(POS_XY(Display::LogFile), "Log: %s", logFilePath.c_str());
         }
@@ -318,18 +326,22 @@ int main(int argc, char *argv[])
                     }
                 }
 
-                if (!valInput.empty() || !valSeeing.empty())
+                if (logFile.has_value())
                 {
-                    logFile << GetUTCTimeStamp(tReceived) << ";"
-                            << std::chrono::duration_cast<std::chrono::milliseconds>(tReceived - logStart).count() << ";"
-                            << valSeeing << ";"
-                            << valInput  << "\n";
-                }
 
-                if (tReceived - lastLogFlush >= LOG_FLUSH_INTERVAL)
-                {
-                    logFile.flush();
-                    lastLogFlush = tReceived;
+                    if (!valInput.empty() || !valSeeing.empty())
+                    {
+                        *logFile << GetUTCTimeStamp(tReceived) << ";"
+                                << std::chrono::duration_cast<std::chrono::milliseconds>(tReceived - logStart).count() << ";"
+                                << valSeeing << ";"
+                                << valInput  << "\n";
+                    }
+
+                    if (tReceived - lastLogFlush >= LOG_FLUSH_INTERVAL)
+                    {
+                        logFile->flush();
+                        lastLogFlush = tReceived;
+                    }
                 }
 
                 PrintValue(Display::Timestamp, "Timestamp (UTC)", GetUTCTimeStamp(tReceived));

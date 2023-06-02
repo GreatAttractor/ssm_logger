@@ -6,7 +6,7 @@ add_executable(ssm_logger
     src/main.cpp
 )
 
-set_property(TARGET ssm_logger PROPERTY CXX_STANDARD 14)
+set_property(TARGET ssm_logger PROPERTY CXX_STANDARD 17)
 set_property(TARGET ssm_logger PROPERTY CXX_STANDARD_REQUIRED ON)
 
 find_package(Boost COMPONENTS system program_options REQUIRED)
