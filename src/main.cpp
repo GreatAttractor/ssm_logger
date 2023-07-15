@@ -36,6 +36,12 @@ constexpr auto LOG_FLUSH_INTERVAL = 30s;
 WINDOW *screen; ///< NCurses window representing the screen
 std::chrono::high_resolution_clock::time_point logStart;
 
+struct Timestamps
+{
+    std::string local;
+    std::string utc;
+};
+
 class NCursesScope
 {
     bool ended = false;
@@ -94,18 +100,25 @@ void ShowMessage(const char *format, ...)
     refresh();
 }
 
-std::string GetUTCTimeStamp(const std::chrono::high_resolution_clock::time_point &t)
+Timestamps GetTimestamps(const std::chrono::high_resolution_clock::time_point &t)
 {
-    const unsigned milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(t.time_since_epoch()).count() % 1000;
-
-    const auto tt = std::chrono::high_resolution_clock::to_time_t(t);
-    const auto lt = std::gmtime(&tt);
     char buf[128] = { 0 };
-    std::strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", lt);
+    Timestamps result{};
 
-    char msbuf[5];
+    const unsigned milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(t.time_since_epoch()).count() % 1000;
+    char msbuf[5] = { 0 };
     snprintf(msbuf, sizeof(msbuf), ".%03u", milliseconds);
-    return std::string(buf) + msbuf;
+    const auto tt = std::chrono::high_resolution_clock::to_time_t(t);
+
+    const auto tUtc = std::gmtime(&tt);
+    std::strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", tUtc);
+    result.utc = std::string(buf) + msbuf;
+
+    const auto tLocal = std::localtime(&tt);
+    std::strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", tLocal);
+    result.local = std::string(buf) + msbuf;
+
+    return result;
 }
 
 void PrintInfo()
@@ -239,12 +252,12 @@ int main(int argc, char *argv[])
         if (logFile.has_value())
         {
             *logFile << "# -------- SSM Logger --------\n"
-                        "# Start time (UTC): " << GetUTCTimeStamp(logStart) << "\n";
+                        "# Start time (UTC): " << GetTimestamps(logStart).utc << "\n";
 
             if (!logFileExisted)
             {
                 // CSV columns description:
-                *logFile << "Timestamp (UTC);Milliseconds since start;Seeing (arc sec);Input value (V)\n";
+                *logFile << "Timestamp;Timestamp (UTC);Milliseconds since start;Seeing (arc sec);Input value (V)\n";
             }
 
             mvprintw(POS_XY(Display::LogFile), "Log: %s", logFilePath.c_str());
@@ -326,15 +339,18 @@ int main(int argc, char *argv[])
                     }
                 }
 
+                const auto timestamps = GetTimestamps(tReceived);
+
                 if (logFile.has_value())
                 {
 
                     if (!valInput.empty() || !valSeeing.empty())
                     {
-                        *logFile << GetUTCTimeStamp(tReceived) << ";"
-                                << std::chrono::duration_cast<std::chrono::milliseconds>(tReceived - logStart).count() << ";"
-                                << valSeeing << ";"
-                                << valInput  << "\n";
+                        *logFile << timestamps.local << ";"
+                                 << timestamps.utc << ";"
+                                 << std::chrono::duration_cast<std::chrono::milliseconds>(tReceived - logStart).count() << ";"
+                                 << valSeeing << ";"
+                                 << valInput  << "\n";
                     }
 
                     if (tReceived - lastLogFlush >= LOG_FLUSH_INTERVAL)
@@ -344,7 +360,7 @@ int main(int argc, char *argv[])
                     }
                 }
 
-                PrintValue(Display::Timestamp, "Timestamp (UTC)", GetUTCTimeStamp(tReceived));
+                PrintValue(Display::Timestamp, "Timestamp (UTC)", timestamps.utc);
 
                 refresh();
             }
